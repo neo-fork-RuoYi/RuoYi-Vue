@@ -36,7 +36,7 @@ services:
       - ${NGINX_CFG_PATH}/app/default.conf:/etc/nginx/nginx.conf
       - ${NGINX_DATA_PATH}/mobile/logs:/var/log/nginx
       - ${NGINX_CFG_PATH}/proxy/app.cnf:/etc/nginx/proxy.cnf # 添加额外的配置文件
-      - ${WEBDIR}/1037_Exch_Sgpmx_Test:/etc/nginx/webdir/ # 添加额外的配置文件
+      - ${WEBDIR}/mobile:/etc/nginx/webdir/ # 添加额外的配置文件
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:

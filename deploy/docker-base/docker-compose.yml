@@ -7,7 +7,7 @@ networks:
 
 services:
   # Redis - 内存数据库
-  ruoyivue-redis:
+  ruoyi-vue-redis:
     container_name: ${COMPOSE_PROJECT_NAME}-redis
     image: redis:${REDIS_VERSION}
     restart: unless-stopped
@@ -29,7 +29,7 @@ services:
       - docker-net
 
   # MySQL 关系型数据库 - 核心数据存储
-  ruoyivue-mysql:
+  ruoyi-vue-mysql:
     image: mysql:${MYSQL_VERSION} # 官方MySQL镜像
     container_name: ${COMPOSE_PROJECT_NAME}-mysql
     restart: unless-stopped

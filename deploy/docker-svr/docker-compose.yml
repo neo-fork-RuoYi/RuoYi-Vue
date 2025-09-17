@@ -6,7 +6,7 @@ networks:
     external: true
 
 services:
-  ruoyivue-admin:
+  ruoyi-vue-admin:
     image: docker.live168.xyz/ruoyi-admin:${ADMIN_VERSION}
     container_name: ${COMPOSE_PROJECT_NAME}-admin
     restart: unless-stopped
@@ -22,7 +22,7 @@ services:
     networks:
       - docker-net
 
-  ruoyivue-app:
+  ruoyi-vue-app:
     image: docker.live168.xyz/ruoyi-api:${APP_VERSION}
     container_name: ${COMPOSE_PROJECT_NAME}-app
     restart: unless-stopped
