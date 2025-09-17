@@ -1,0 +1,19 @@
+        location /api/ {
+            rewrite ^/api/(.*)$ /$1 break;
+            proxy_pass http://host.docker.internal:9527;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+                
+        location /webSocket/ {
+            proxy_pass http://host.docker.internal:9527;  # 假设 WebSocket 服务在 9527 端口上运行
+            proxy_http_version 1.1;  # WebSocket 需要使用 HTTP/1.1
+            proxy_set_header Upgrade $http_upgrade;  # 升级请求头，用于 WebSocket
+            proxy_set_header Connection 'upgrade';  # 升级连接
+            proxy_set_header Host $host;  # 转发原始 Host 头
+            proxy_set_header X-Real-IP $remote_addr;  # 转发客户端真实 IP
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;  # 转发真实 IP 地址
+            proxy_set_header X-Forwarded-Proto $scheme;  # 转发协议（http 或 https）
+        }
