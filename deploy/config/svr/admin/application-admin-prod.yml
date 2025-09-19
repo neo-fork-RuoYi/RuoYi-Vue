@@ -5,13 +5,13 @@ spring:
     # 连接超时 毫秒
     connectTimeout: 1800
     # 地址
-    host: ruoyi-redis
+    host: exch-redis
     # 端口，默认为6379
-    port: 16379
+    port: 6379
     # 数据库索引
     database: 6
     # 密码
-    password: redis1234
+    password: XXKytcACPX3GbdsH
     # 连接超时时间
     timeout: 60s
     jedis:

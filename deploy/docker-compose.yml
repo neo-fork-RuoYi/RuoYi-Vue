@@ -1,0 +1,191 @@
+# 定义网络配置
+networks:
+  # 基础网络使用 bridge 驱动，用于容器间通信
+  docker-net:
+    name: ${COMPOSE_NET_NAME}-net # 实际引用的 Docker 网络名
+    # driver: bridge # 使用 Docker 默认的 bridge 网络驱动
+    # attachable: true # 允许其他容器附加到此网络
+    external: true
+
+services:
+  # Redis 内存数据库 - 用于缓存和高速数据访问
+  redis:
+    container_name: ${COMPOSE_PROJECT_NAME}-redis
+    image: redis:${REDIS_VERSION}
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ} # 时区设置，从环境变量获取
+    ports:
+      - "${REDIS_PORT}:6379" # 暴露Redis默认端口
+    volumes:
+      - ${REDIS_DATA_PATH}:/data # RDB/AOF持久化数据
+      - ${REDIS_LOGS_PATH}:/var/log/redis # 日志目录
+    command: >
+      sh -c "redis-server --requirepass ${REDIS_PASSWORD} --appendonly yes"  # 启动带密码和AOF持久化
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"] # 使用密码检查
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - docker-net
+
+  # RedisInsight - Redis 可视化监控管理工具
+  redisinsight:
+    image: redislabs/redisinsight:${REDIS_INSIGHT_VERSION} # 官方RedisInsight镜像
+    container_name: ${COMPOSE_PROJECT_NAME}-redisinsight
+    restart: unless-stopped # 除非手动停止，否则自动重启
+    ports:
+      - "${REDIS_INSIGHT_PORT}:8001" # 暴露RedisInsight Web界面端口
+    volumes:
+      - ${REDIS_INSIGHT_DATA_PATH}:/data # 数据存储
+    depends_on:
+      redis:
+        condition: service_healthy # 依赖redis服务健康状态
+    networks:
+      - docker-net
+
+  # MySQL 关系型数据库 - 核心数据存储
+  mysql:
+    image: mysql:${MYSQL_VERSION} # 官方MySQL镜像
+    container_name: ${COMPOSE_PROJECT_NAME}-mysql
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ} # 时区设置，从环境变量获取
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD} # root密码（必须设置）
+      MYSQL_DATABASE: ${MYSQL_INITDB} # 初始化创建的数据库（可选）
+      # MYSQL_USER: myuser                     # 创建新用户（可选）
+      # MYSQL_PASSWORD: mypassword             # 新用户密码（可选）
+    volumes:
+      - ${MYSQL_DATA_PATH}:/var/lib/mysql # 数据文件存储
+      # - ./mysql/conf.d:/etc/mysql/conf.d # 自定义配置
+      - ${MYSQL_LOGS_PATH}:/var/log/mysql # 日志文件
+      - ${MYSQL_INIT_SCRIPT}:/docker-entrypoint-initdb.d
+    ports:
+      - "${MYSQL_PORT}:3306" # 暴露MySQL默认端口
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_general_ci
+      --explicit_defaults_for_timestamp=true
+      --lower_case_table_names=1
+      --sql-mode=NO_ENGINE_SUBSTITUTION
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "mysqladmin",
+          "ping",
+          "-h",
+          "localhost",
+          "-p${MYSQL_ROOT_PASSWORD}",
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - docker-net
+
+  # phpMyAdmin - MySQL 数据库管理工具
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:${PHPMYADMIN_VERSION} # 官方phpMyAdmin镜像
+    container_name: ${COMPOSE_PROJECT_NAME}-phpmyadmin
+    platform: linux/amd64 # 指定平台架构
+    restart: always # 总是重启策略
+    environment:
+      TZ: Asia/Shanghai # 时区设置
+      PMA_HOST: mysql # 连接的MySQL主机名
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD} # MySQL root密码
+    ports:
+      - "${PHPMYADMIN_PORT}:80" # 暴露Web界面端口
+    networks:
+      - docker-net
+    depends_on:
+      mysql:
+        condition: service_healthy # 依赖mysql服务健康状态
+
+  ruoyi-admin:
+    image: docker.live168.xyz/ruoyi-admin:${ADMIN_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}-admin
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - ${ADMIN_CFG_PATH}/application-admin-prod.yml:/app/application-prod.yml
+      - ${ADMIN_LOGS_PATH}/:/app/logs/
+    ports:
+      - ${ADMIN_PORT}:9527 # 本机端口 → 容器端口
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    networks:
+      - docker-net
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  ruoyi-app:
+    image: docker.live168.xyz/ruoyi-api:${APP_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}-app
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ}
+    volumes:
+      - ${APP_CFG_PATH}/application-app-prod.yml:/app/application-prod.yml
+      - ${APP_LOGS_PATH}/:/app/logs/
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - ${APP_PORT}:9528 # 本机端口 → 容器端口
+    networks:
+      - docker-net
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  # NGINX 反向代理容器 (自动读取 VIRTUAL_HOST 环境变量生成配置)
+  # nginx-proxy:
+  #   image: jwilder/nginx-proxy:${NGINX_PROXY_VERSION}
+  #   container_name: ${COMPOSE_PROJECT_NAME}-nginx-proxy
+  #   environment:
+  #     TZ: ${TZ} # 时区设置，从环境变量获取
+  #   volumes:
+  #     - /var/run/docker.sock:/tmp/docker.sock:ro # 监听 Docker 事件，自动配置 NGINX
+  #   ports:
+  #     - "80:80" # 映射 HTTP 端口
+  #   networks:
+  #     - docker-net
+
+  webadmin:
+    image: nginx:${NGINX_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}-webadmin
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ} # 时区设置，从环境变量获取
+    volumes:
+      - ${NGINX_CFG_PATH}/app/default.conf:/etc/nginx/nginx.conf
+      - ${NGINX_DATA_PATH}/admin/logs:/var/log/nginx
+      - ${NGINX_CFG_PATH}/proxy/admin.cnf:/etc/nginx/proxy.cnf # 添加额外的配置文件
+      - ${WEBDIR}/admin:/etc/nginx/webdir/ # 添加额外的配置文件
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "60000:80" # 本机端口 → 容器端口
+    networks:
+      - docker-net
+
+  webmobile:
+    image: nginx:${NGINX_VERSION}
+    container_name: ${COMPOSE_PROJECT_NAME}-nginx-mobile
+    restart: unless-stopped
+    environment:
+      TZ: ${TZ} # 时区设置，从环境变量获取
+    volumes:
+      - ${NGINX_CFG_PATH}/app/default.conf:/etc/nginx/nginx.conf
+      - ${NGINX_DATA_PATH}/mobile/logs:/var/log/nginx
+      - ${NGINX_CFG_PATH}/proxy/app.cnf:/etc/nginx/proxy.cnf # 添加额外的配置文件
+      - ${WEBDIR}/mobile:/etc/nginx/webdir/ # 添加额外的配置文件
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "61001:80" # 本机端口 → 容器端口
+    networks:
+      - docker-net
