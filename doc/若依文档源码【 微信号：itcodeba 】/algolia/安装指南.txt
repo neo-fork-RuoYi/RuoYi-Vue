@@ -1,0 +1,20 @@
+1、安装jq
+yum install jq
+
+2、安装docker
+yum install docker
+
+3、上传.env和config.json执行命令（时间较长，可使用daocloud离线处理）
+docker run -it --env-file=.env -e "CONFIG=$(cat /home/ruoyi/tmp/config.json | jq -r tostring)" algolia/docsearch-scraper
+
+4、修改vuepress的config.js中的themeConfig属性
+algolia : {
+	apiKey : '017ae7acde5e01882ca2985797787d06',
+	indexName : 'ruoyi',
+	algoliaOptions : {
+		hitsPerPage : 5,
+		facetFilters : ""
+	}
+},
+
+5、测试查询是否正常（启动命令 systemctl start docker）

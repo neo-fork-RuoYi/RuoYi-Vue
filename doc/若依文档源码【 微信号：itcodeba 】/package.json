@@ -1,0 +1,17 @@
+{
+  "name": "RuoYi",
+  "version": "1.0.0",
+  "description": "若依开发文档",
+  "main": "index.js",
+  "scripts": {
+    "start": "vuepress dev docs",
+    "dev": "vuepress dev docs",
+    "build": "vuepress build docs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "vuepress": "1.8.0"
+  }
+}
